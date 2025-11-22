@@ -41,3 +41,35 @@ Deployment Assumptions:
 - Single Redis instance
 - Horizontally scalable at the app layer
 - No multi-region or cluster complexity in this project
+
+## Functional Requirements
+1. The system must enforce a rate limit per API key using the Token Bucket algorithm.
+2. Each incoming request must check the current token count and allow/block based on availability.
+3. The system must return HTTP 200 when allowed and 429 "Too Many Requests when blocked.
+4. The system must maintain rate-limit state in Redis to allow horizontal scaling of the FastAPI nodes.
+5. The system must maintain rate-limited user endpoint: GET /resource.
+6. The system must expose an admin endpoint to configure or update rate-limit policies.
+7. The system must expose a /metrics endpoint for Prometheus scraping.
+8. The system must log rate-limit violations and internal errors.
+
+## Non-Fuctional Requirements
+1. Low latency
+2. High availability
+3. Horizontal scalability
+4. Consistency
+5. Predictability
+6. Fault tolerance
+7. Observability
+8. Minimal Redis footprint
+
+## High-Level Architecture
++--------+     +----------------+     +--------+     +-----------+
+| Client | --> | FastAPI (app)  | --> | Redis  | --> | Upstream  |
+|        |     | (rate limiter) |     | (state) |     | service   |
++--------+     +----------------+     +--------+     +-----------+
+                    |   ^
+                    v   |
+                 /metrics (Prom) |
+                    |            |
+                Locust/k6        |
+

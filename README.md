@@ -1,37 +1,43 @@
-# rate-limiter-service
-Distributed Rate Limiter with token bucket and sliding window variants
+## Overview
+A lightweight rate-limiting service built with FastAPI and Redis using the Token Bucket algorithm.
+It enforces request limits for clients, prevents overload during traffic spikes, and provides predictable system behavior under burst workloads.
 
-## 1. Problem statement
-high-throughput rate limiter supporting Token Bucket and Sliding Window algorithms. Supports distributed environments using Redis.
+## Why Rate Limiting Matters:
+- Every distributed system has a throughput ceiling; When traffic exceeds that limit, queues grow and tail latency spikes.
+- High latency triggers client retries, which results in retry storms that cascade into system-wide failures.
+- Without rate limits, a single noisy client can monopolize shared resources and starve other users, breaking fairness guarantees.
+- Systems cannot scale instantly-autoscaling, caches, and DB pools require warm-up time; rate limiting smooths bursts into manageable traffic.
+- Overload causes cache eviction, lock contention, and even region failover; rate limiting ensures stable and predictable operation under load.
 
-## 2. Requirements
-- per-user and global rate limiting
-- Configurable limits and windows
-- Low-latency checks (<5ms local, <15ms distributed)
-- Burst handling
-- Fault tolerance
+## Constraints and Assumptions
+Traffic model:
+- Steady load: 500 req/s
+- Peak load: 1200 req/s
+- Burst duration: 4 seconds
 
-## 3. API Design
-- Post /check
-- Post consume
-- Get
+Client Population
+- ~12,000 active clients
+- Identified via API key
 
-## 4. Architecture
-(Architecture diagram will be added here)
+Rate Limit Policy (Taken Bucket)
+- Bucket size: 40 tokens
+- Refill rate: 10 tokens/second
+- Supports short bursts while enforcing a sustained rate
 
-## 5. Scaling Plan
-- Redis for distributed counters
-- Lua scripting for atomic operations
-- SHarding strategy
-- Caching layers
-- Failure mechanism
+Latency Budget:
+- Rate limiter should add < 3 ms p99 latency
 
-## 6. Load Testing Plan
-Tools: k6
-Metrics: p95, p99 latency, max RPS, failure thresholds
+Redis Performance Assumptions:
+- Local Redis latency: 0.5 - 1 ms
+- Token check requires: 1 GET + 1 Lua script
+- Max safe throughput assumed: ~50k ops/sec
 
-## 7. Results
-(TBA)
+Key Cardinality:
+- 1 Redis key per client
+- ~12,000 total keys
 
-## 8. Improvements
-(TBA)
+Deployment Assumptions:
+- Local deployment using Docker
+- Single Redis instance
+- Horizontally scalable at the app layer
+- No multi-region or cluster complexity in this project

@@ -65,11 +65,11 @@ Deployment Assumptions:
 ## High-Level Architecture
 +--------+     +----------------+     +--------+     +-----------+
 | Client | --> | FastAPI (app)  | --> | Redis  | --> | Upstream  |
-|        |     | (rate limiter) |     | (state) |     | service   |
+|        |     | (rate limiter) |     | (state)|     | service   |
 +--------+     +----------------+     +--------+     +-----------+
                     |   ^
                     v   |
                  /metrics (Prom) |
                     |            |
-                Locust/k6        |
+                  Locust/k6      |
 

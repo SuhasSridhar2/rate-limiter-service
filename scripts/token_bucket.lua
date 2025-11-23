@@ -1,20 +1,38 @@
--- ARGV: bucket_size, refill_rate, now_ms, cost (1)
---  KEYS[1] = rl:{api_key}
+-- scripts/token_bucket.lua
+-- KEYS[1] = rl:{api_key}
+-- ARGV[1] = bucket_size (number)
+-- ARGV[2] = refill_rate (tokens per second, number)
+-- ARGV[3] = now_ms (number)
+-- ARGV[4] = cost (tokens to consume, typically 1)
 
-local data = redis.call('HMGET', KEYS[1], 'tokens', 'last_ts')
-local tokens = tonumber(data[1]) or tonumber(ARGV[1]) -- default full bucket
-local last_ts = tonumber(data[2]) or tonumber(ARGV[3])
+local key = KEYS[1]
+local bucket_size = tonumber(ARGV[1])
+local refill_rate = tonumber(ARGV[2])
+local now_ms = tonumber(ARGV[3])
+local cost = tonumber(ARGV[4])
 
-local elapsed = (tonumber(ARGV[3]) - last_ts) / 1000.0
-local refill = elapsed * tonumber(ARGV[2])
-tokens = math.min(tonumber(ARGV[1]), toens + refill)
+local data = redis.call('HMGET', key, 'tokens', 'last_ts')
+local tokens = tonumber(data[1])
+local last_ts = tonumber(data[2])
+
+if tokens == nil then
+    tokens = bucket_size
+    last_ts = now_ms
+end
+
+local elapsed = (now_ms - last_ts) / 1000.0
+if elapsed > 0 then
+    local refill = elapsed * refill_rate
+    tokens = math.min(bucket_size, tokens + refill)
+end
 
 local allowed = 0
-if tokens >= tonumber(ARGV[4]) then
-    tokens = tokens - tonumber(ARGV[4])
+if tokens >= cost then
+    tokens = tokens - cost
     allowed = 1
-end 
+end
 
-redis.call('HMSET', KEYS[1], 'tokens', 'last_ts', ARGV[3])
-redis.call('EXPIRE', KEYS[1], 3600) -- example TTL
-return {allowed, tokens}
+redis.call('HMSET', key, 'tokens', tokens, 'last_ts', now_ms)
+redis.call('EXPIRE', key, 3600) -- key expiry to free memory if inactive
+
+return {allowed, tostring(tokens)}
